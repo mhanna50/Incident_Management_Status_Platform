@@ -9,6 +9,7 @@ urlpatterns = [
         views.IncidentAnalyticsView.as_view(),
         name="incident-analytics",
     ),
+    path("api/metrics", views.AdminMetricsView.as_view(), name="admin-metrics"),
     path(
         "api/incidents/<uuid:incident_id>",
         views.IncidentDetailView.as_view(),

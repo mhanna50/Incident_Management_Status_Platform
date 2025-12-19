@@ -1,4 +1,5 @@
-import { type ReactNode, useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 
 interface ModalProps {
   open: boolean
@@ -10,17 +11,36 @@ interface ModalProps {
 const Modal = ({ open, title, onClose, children }: ModalProps) => {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
-
-  if (!open) {
-    return null
-  }
+  const [portalElement, setPortalElement] = useState<HTMLElement | null>(null)
+  const canUseDom = typeof document !== 'undefined'
+  const onCloseRef = useRef(onClose)
 
   useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    if (!canUseDom) return
+    const target = document.getElementById('modal-root')
+    setPortalElement(target)
+  }, [canUseDom])
+
+  useEffect(() => {
+    if (!canUseDom) return
     if (!open) return
+    const original = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = original
+    }
+  }, [open, canUseDom])
+
+  useEffect(() => {
+    if (!open || !canUseDom) return
     const previouslyFocused = document.activeElement as HTMLElement | null
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose()
+        onCloseRef.current?.()
       }
       if (event.key === 'Tab') {
         const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -47,15 +67,23 @@ const Modal = ({ open, title, onClose, children }: ModalProps) => {
       document.removeEventListener('keydown', handleKeyDown)
       previouslyFocused?.focus()
     }
-  }, [open, onClose])
+  }, [open, canUseDom])
 
-  return (
+  const handleClose = () => {
+    onCloseRef.current?.()
+  }
+
+  if (!open || !portalElement) {
+    return null
+  }
+
+  const modalTree = (
     <div
       className="modal-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="modal"
@@ -66,7 +94,7 @@ const Modal = ({ open, title, onClose, children }: ModalProps) => {
       >
         <div className="modal-header">
           <h2 id={titleId}>{title}</h2>
-          <button className="ghost-button" onClick={onClose} aria-label="Close modal">
+          <button className="ghost-button" onClick={handleClose} aria-label="Close modal">
             ×
           </button>
         </div>
@@ -74,6 +102,8 @@ const Modal = ({ open, title, onClose, children }: ModalProps) => {
       </div>
     </div>
   )
+
+  return createPortal(modalTree, portalElement)
 }
 
 export default Modal

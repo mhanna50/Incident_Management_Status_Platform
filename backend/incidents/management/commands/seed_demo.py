@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from incidents.models import ActionItem, Incident, IncidentUpdate, Postmortem
+from incidents.models import ActionItem, AuditEvent, Incident, IncidentUpdate, Postmortem
 
 
 class Command(BaseCommand):
@@ -24,6 +24,7 @@ class Command(BaseCommand):
                 status=Incident.Status.RESOLVED,
                 is_public=True,
                 hours_open=6,
+                created_by_name="Jordan Patel",
             ),
             self._create_incident(
                 title="Checkout button disabled",
@@ -31,6 +32,7 @@ class Command(BaseCommand):
                 status=Incident.Status.MONITORING,
                 is_public=True,
                 hours_open=2,
+                created_by_name="Morgan Lee",
             ),
             self._create_incident(
                 title="Internal dashboard outage",
@@ -38,6 +40,31 @@ class Command(BaseCommand):
                 status=Incident.Status.INVESTIGATING,
                 is_public=False,
                 hours_open=1,
+                created_by_name="Taylor Kim",
+            ),
+            self._create_incident(
+                title="Webhook delivery delays",
+                severity=Incident.Severity.SEV3,
+                status=Incident.Status.IDENTIFIED,
+                is_public=True,
+                hours_open=3,
+                created_by_name="Jamie Owens",
+            ),
+            self._create_incident(
+                title="Mobile push degraded",
+                severity=Incident.Severity.SEV4,
+                status=Incident.Status.MONITORING,
+                is_public=True,
+                hours_open=5,
+                created_by_name="Riley Chen",
+            ),
+            self._create_incident(
+                title="API gateway timeout errors",
+                severity=Incident.Severity.SEV1,
+                status=Incident.Status.INVESTIGATING,
+                is_public=True,
+                hours_open=4,
+                created_by_name="Alex Rivera",
             ),
         ]
 
@@ -48,40 +75,70 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("Demo data seeded successfully."))
 
-    def _create_incident(self, *, title, severity, status, is_public, hours_open) -> Incident:
+    def _create_incident(self, *, title, severity, status, is_public, hours_open, created_by_name) -> Incident:
         now = timezone.now()
+        created_at = now - timedelta(hours=hours_open)
+        resolved_at = created_at + timedelta(hours=hours_open) if status == Incident.Status.RESOLVED else None
+        updated_at = resolved_at or now
+
         incident = Incident.objects.create(
             title=title,
             summary=f"{title} summary with key impact statements.",
             severity=severity,
             status=status,
             is_public=is_public,
-            created_by_name="Demo Bot",
-            created_at=now - timedelta(hours=hours_open),
-            updated_at=now,
-            resolved_at=now if status == Incident.Status.RESOLVED else None,
+            created_by_name=created_by_name,
+        )
+        Incident.objects.filter(pk=incident.pk).update(
+            created_at=created_at,
+            updated_at=updated_at,
+            resolved_at=resolved_at,
+        )
+        incident.refresh_from_db()
+        AuditEvent.objects.create(
+            actor_name=created_by_name,
+            action="INCIDENT_CREATED",
+            incident=incident,
+            metadata={
+                "seeded": True,
+                "severity": incident.severity,
+                "status": incident.status,
+            },
         )
         return incident
 
     def _seed_updates(self, incident: Incident):
         authors = ["Alex", "Jordan", "Taylor", "Morgan"]
-        messages = [
-            "Investigating elevated error rates.",
-            "Identified degraded replica. Working on fix.",
-            "Mitigated impact and monitoring closely.",
-            "Confirming resolution with customers.",
+        timeline = [
+            (Incident.Status.INVESTIGATING, "Investigating elevated error rates."),
+            (Incident.Status.IDENTIFIED, "Identified a degraded replica and isolating impact."),
+            (Incident.Status.MONITORING, "Mitigation applied, monitoring closely."),
+            (Incident.Status.RESOLVED, "Confirming resolution with customers."),
         ]
-        for idx, message in enumerate(messages):
-            if idx > 0 and incident.status == Incident.Status.INVESTIGATING:
+        steps = []
+        for status, message in timeline:
+            steps.append((status, message))
+            if status == incident.status:
                 break
-            IncidentUpdate.objects.create(
+
+        start = incident.created_at
+        end = incident.resolved_at or incident.updated_at
+        if end <= start:
+            end = start + timedelta(minutes=30)
+        spacing = (end - start) / (len(steps) + 1)
+
+        for idx, (status, message) in enumerate(steps):
+            timestamp = start + spacing * (idx + 1)
+            update = IncidentUpdate.objects.create(
                 incident=incident,
                 message=message,
-                status_at_time=incident.status,
+                status_at_time=status,
                 created_by_name=random.choice(authors),
             )
+            IncidentUpdate.objects.filter(pk=update.pk).update(created_at=timestamp)
 
     def _seed_postmortem(self, incident: Incident):
+        published_at = (incident.resolved_at or incident.updated_at) + timedelta(minutes=45)
         postmortem = Postmortem.objects.create(
             incident=incident,
             summary="Root cause summary for demo seed.",
@@ -91,11 +148,11 @@ class Command(BaseCommand):
             resolution="Rolled back migration and tuned connections.",
             lessons_learned="Improve alert thresholds + runbooks.",
             published=True,
-            published_at=timezone.now(),
+            published_at=published_at,
         )
         ActionItem.objects.create(
             postmortem=postmortem,
             title="Add automated DB failover test",
             owner_name="SRE Team",
-            due_date=timezone.now().date() + timedelta(days=14),
+            due_date=published_at.date() + timedelta(days=14),
         )

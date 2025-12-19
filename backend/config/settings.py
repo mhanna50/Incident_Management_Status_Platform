@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 
 import structlog
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -62,6 +63,9 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True  # dev only
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "idempotency-key",
+]
 
 
 ROOT_URLCONF = 'config.urls'

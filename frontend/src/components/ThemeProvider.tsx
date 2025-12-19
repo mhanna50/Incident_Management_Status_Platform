@@ -13,6 +13,7 @@ type Theme = 'light' | 'dark'
 interface ThemeContextValue {
   theme: Theme
   toggleTheme: () => void
+  setTheme: (theme: Theme) => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
@@ -32,7 +33,7 @@ const getPreferredTheme = (): Theme => {
 }
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>(() => getPreferredTheme())
+  const [theme, setThemeState] = useState<Theme>(() => getPreferredTheme())
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -40,10 +41,14 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   }, [theme])
 
   const toggleTheme = useCallback(() => {
-    setTheme((current) => (current === 'light' ? 'dark' : 'light'))
+    setThemeState((current) => (current === 'light' ? 'dark' : 'light'))
   }, [])
 
-  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme])
+  const setTheme = useCallback((next: Theme) => {
+    setThemeState(next)
+  }, [])
+
+  const value = useMemo(() => ({ theme, toggleTheme, setTheme }), [theme, toggleTheme, setTheme])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }

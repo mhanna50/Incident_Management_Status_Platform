@@ -6,6 +6,7 @@ import type {
   IncidentSeverity,
   IncidentStatus,
   IncidentUpdate,
+  MetricsResponse,
   Postmortem,
 } from './types'
 
@@ -70,6 +71,9 @@ export interface IncidentAnalytics {
 
 export const getIncidentAnalytics = () =>
   request<IncidentAnalytics>('/incidents/analytics')
+
+export const getAdminMetrics = () =>
+  request<MetricsResponse>('/metrics')
 
 export const listIncidents = () => request<Incident[]>('/incidents')
 

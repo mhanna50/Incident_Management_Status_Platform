@@ -106,3 +106,61 @@ export const SEVERITY_LABELS: Record<IncidentSeverity, string> = {
   SEV3: 'SEV3 - Medium',
   SEV4: 'SEV4 - Low',
 }
+
+export interface MetricsTimelinePoint {
+  timestamp: string
+  count: number
+}
+
+export interface MetricsWeeklyPoint {
+  week_start: string
+  mttr_hours: number | null
+}
+
+export interface MetricsWatchlistIncident {
+  id: string
+  title: string
+  minutes_since_update: number
+}
+
+export interface MetricsWatchlistPostmortem {
+  id: string
+  title: string
+  severity: IncidentSeverity
+}
+
+export interface MetricsWatchlistActionItem {
+  id: string
+  title: string
+  owner_name: string
+  due_date: string
+}
+
+export interface MetricsResponse {
+  incident_pulse: {
+    timeline: MetricsTimelinePoint[]
+    current_open: number
+    sla_target: number
+    severity_breakdown: Record<IncidentSeverity, number>
+  }
+  resolution_health: {
+    weekly_mttr: {
+      all: MetricsWeeklyPoint[]
+      public: MetricsWeeklyPoint[]
+      internal: MetricsWeeklyPoint[]
+    }
+    percentiles: { p50: number | null; p90: number | null }
+    resolved_by_severity: Array<{ severity: IncidentSeverity; count: number }>
+    visibility_breakdown: { public: number; internal: number }
+  }
+  engagement: {
+    subscriber_growth: Array<{ date: string; count: number }>
+    email_delivery: Array<{ status: string; count: number }>
+    status_page_views: Array<{ date: string; views: number | null }>
+  }
+  automation_watchlist: {
+    stale_incidents: MetricsWatchlistIncident[]
+    missing_postmortems: MetricsWatchlistPostmortem[]
+    overdue_action_items: MetricsWatchlistActionItem[]
+  }
+}

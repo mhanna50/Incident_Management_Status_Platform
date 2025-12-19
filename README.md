@@ -204,4 +204,4 @@ This repository is designed to show recruiters/interviewers that you understand:
 - How to build a modern, TypeScript-based SPA that consumes SSE feeds and surfaces the right UX affordances (filters, modals, tabs, toasts).
 - How to integrate Celery, Redis, and email delivery to move side effects off the request path.
 
-Clone it, run it locally, deploy it to Vercel + Render/Fly, and include screenshots + metrics in your portfolio to stand out. Happy building! 🚀
+Clone it, run it locally, deploy it to Vercel + Render/Fly, and include screenshots + metrics in your portfolio to stand out. Happy building! 

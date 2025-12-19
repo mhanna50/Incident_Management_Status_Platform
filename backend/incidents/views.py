@@ -23,6 +23,7 @@ from incidents.services import (
     analytics as analytics_service,
     health as health_service,
     incidents as incident_services,
+    metrics as metrics_service,
     notifications,
     sse,
     status as status_service,
@@ -139,6 +140,12 @@ class IncidentAnalyticsView(APIView):
     def get(self, request):
         data = analytics_service.get_incident_analytics()
         return Response(data)
+
+
+class AdminMetricsView(APIView):
+    def get(self, request):
+        payload = metrics_service.get_admin_metrics()
+        return Response(payload)
 
 
 class PostmortemView(APIView):

@@ -65,36 +65,29 @@ const INCIDENT_TEMPLATES: Array<{ id: string; label: string; values: incidentsAp
   },
 ]
 
-const TAG_OPTIONS: Array<{ label: string; predicate: (incident: Incident) => boolean }> = [
-  { label: 'Customer-facing', predicate: (incident) => incident.is_public },
-  { label: 'Internal-only', predicate: (incident) => !incident.is_public },
-  { label: 'Active', predicate: (incident) => incident.active },
-  { label: 'Resolved', predicate: (incident) => !incident.active },
-]
-
-const deriveTags = (incident: Incident) => {
-  const tags: string[] = []
-  tags.push(`Severity ${incident.severity}`)
-  tags.push(incident.is_public ? 'Customer-facing' : 'Internal-only')
-  tags.push(incident.active ? 'Active' : 'Resolved')
-  return tags
-}
-
 const AdminIncidentsPage = () => {
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filters, setFilters] = useState<{ severity: IncidentSeverity | ''; status: IncidentStatus | '' }>(
-    { severity: '', status: '' }
-  )
+  const [filters, setFilters] = useState<{
+    severity: IncidentSeverity | ''
+    status: IncidentStatus | ''
+    visibility: '' | 'PUBLIC' | 'INTERNAL'
+  }>({ severity: '', status: '', visibility: '' })
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [form, setForm] = useState(defaultForm)
+  const [form, setForm] = useState(() => defaultForm())
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [analytics, setAnalytics] = useState<incidentsApi.IncidentAnalytics | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeTags, setActiveTags] = useState<string[]>([])
   const { addToast } = useToast()
+  const totalSeverityCount = useMemo(() => {
+    if (!analytics) return 0
+    return INCIDENT_SEVERITIES.reduce(
+      (sum, severity) => sum + (analytics.incidents_per_severity[severity] ?? 0),
+      0
+    )
+  }, [analytics])
 
   const fetchIncidents = useCallback(async () => {
     try {
@@ -138,12 +131,15 @@ const AdminIncidentsPage = () => {
       const searchMatch = searchTerm
         ? `${incident.title} ${incident.summary}`.toLowerCase().includes(searchTerm.toLowerCase())
         : true
-      const tagMatch = activeTags.length
-        ? activeTags.every((tag) => TAG_OPTIONS.find((option) => option.label === tag)?.predicate(incident))
-        : true
-      return severityMatch && statusMatch && searchMatch && tagMatch
+      const visibilityMatch =
+        filters.visibility === 'PUBLIC'
+          ? incident.is_public
+          : filters.visibility === 'INTERNAL'
+            ? !incident.is_public
+            : true
+      return severityMatch && statusMatch && searchMatch && visibilityMatch
     })
-  }, [incidents, filters, searchTerm, activeTags])
+  }, [incidents, filters, searchTerm])
 
   const handleCreateIncident = async (event: FormEvent) => {
     event.preventDefault()
@@ -151,7 +147,7 @@ const AdminIncidentsPage = () => {
     try {
       await incidentsApi.createIncident(form)
       setShowCreateModal(false)
-      setForm(defaultForm)
+      setForm(defaultForm())
       await fetchIncidents()
       addToast('Incident created')
     } catch (err) {
@@ -173,10 +169,6 @@ const AdminIncidentsPage = () => {
     }
   }
 
-  const toggleTag = (tag: string) => {
-    setActiveTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]))
-  }
-
   return (
     <AdminLayout
       title="Incidents"
@@ -184,7 +176,7 @@ const AdminIncidentsPage = () => {
       onSearch={setSearchTerm}
       searchValue={searchTerm}
       actions={
-        <button className="primary" onClick={() => setShowCreateModal(true)}>
+        <button type="button" className="primary" onClick={() => setShowCreateModal(true)}>
           + Create incident
         </button>
       }
@@ -192,33 +184,38 @@ const AdminIncidentsPage = () => {
       <div className="card page-block">
 
       {analytics && (
-        <div className="analytics-grid">
-          <div className="analytics-card">
-            <p>Active incidents</p>
-            <strong>{analytics.active_incidents}</strong>
-          </div>
-          <div className="analytics-card">
-            <p>MTTR</p>
-            <strong>{analytics.mttr_hours !== null ? `${analytics.mttr_hours} hrs` : '—'}</strong>
-          </div>
-          <div className="analytics-card">
-            <p>Resolved last 7 days</p>
-            <strong>{analytics.resolved_last_7_days}</strong>
-          </div>
-          <div className="analytics-card">
-            <p>Severity distribution</p>
-            <div className="severity-distribution" role="list">
-              {INCIDENT_SEVERITIES.map((severity) => (
-                <div className="severity-chip" role="listitem" key={severity}>
-                  <span className="severity-chip-label">{severity}</span>
-                  <span className="severity-chip-value">
-                    {analytics.incidents_per_severity[severity] ?? 0}
-                  </span>
-                </div>
-              ))}
+        <section className="analytics-section">
+          <div className="analytics-row">
+            <div className="analytics-card metric">
+              <p>Active incidents</p>
+              <strong>{analytics.active_incidents}</strong>
+            </div>
+            <div className="analytics-card metric">
+              <p>MTTR</p>
+              <strong>{analytics.mttr_hours !== null ? `${analytics.mttr_hours} hrs` : '—'}</strong>
+            </div>
+            <div className="analytics-card metric">
+              <p>Resolved last 7 days</p>
+              <strong>{analytics.resolved_last_7_days}</strong>
             </div>
           </div>
-        </div>
+          <div className="analytics-card severity-card">
+            <p>Severity distribution</p>
+            {INCIDENT_SEVERITIES.map((severity) => {
+              const count = analytics.incidents_per_severity[severity] ?? 0
+              const percent = totalSeverityCount ? Math.round((count / totalSeverityCount) * 100) : 0
+              return (
+                <div className="severity-row" key={severity}>
+                  <span className="severity-chip-label">{severity}</span>
+                  <div className="severity-bar">
+                    <div className="severity-bar-fill" style={{ width: `${percent}%` }} />
+                  </div>
+                  <span className="severity-chip-value">{count}</span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
       )}
 
       <div className="filters">
@@ -254,19 +251,22 @@ const AdminIncidentsPage = () => {
             ))}
           </select>
         </label>
-      </div>
-      <div className="tag-filter">
-        {TAG_OPTIONS.map((tag) => (
-          <button
-            type="button"
-            key={tag.label}
-            className={activeTags.includes(tag.label) ? 'tag-chip active' : 'tag-chip'}
-            onClick={() => toggleTag(tag.label)}
-            aria-pressed={activeTags.includes(tag.label)}
+        <label>
+          Audience
+          <select
+            value={filters.visibility}
+            onChange={(event) =>
+              setFilters((prev) => ({
+                ...prev,
+                visibility: event.target.value as '' | 'PUBLIC' | 'INTERNAL',
+              }))
+            }
           >
-            {tag.label}
-          </button>
-        ))}
+            <option value="">All</option>
+            <option value="PUBLIC">Customer-facing</option>
+            <option value="INTERNAL">Internal only</option>
+          </select>
+        </label>
       </div>
 
       {loading && <p>Loading incidents…</p>}
@@ -281,13 +281,6 @@ const AdminIncidentsPage = () => {
             </header>
             <h3>{incident.title}</h3>
             <p>{incident.summary}</p>
-            <div className="tag-list" aria-label="Incident tags">
-              {deriveTags(incident).map((tag) => (
-                <span key={tag} className="tag-chip subtle">
-                  {tag}
-                </span>
-              ))}
-            </div>
             <div className="incident-meta">
               <span>{incident.is_public ? 'Public' : 'Internal'}</span>
               <span>{formatDateTime(incident.created_at)}</span>

@@ -76,6 +76,10 @@ const AdminIncidentDetailPage = () => {
     owner_name: '',
     due_date: '',
   })
+  const [transitionSubmitting, setTransitionSubmitting] = useState(false)
+  const [updateSubmitting, setUpdateSubmitting] = useState(false)
+  const [transitionNotice, setTransitionNotice] = useState('')
+  const [updateNotice, setUpdateNotice] = useState('')
   const { addToast } = useToast()
 
   const fetchIncident = useCallback(async () => {
@@ -144,12 +148,18 @@ const AdminIncidentDetailPage = () => {
     event.preventDefault()
     if (!id) return
     try {
+      setTransitionSubmitting(true)
+      setTransitionNotice('')
+      const actor = transitionPayload.actor_name
       await incidentsApi.transitionIncident(id, transitionPayload)
-      setTransitionPayload((prev) => ({ ...prev, message: '' }))
       await fetchIncident()
-      addToast('Status updated')
+      setTransitionPayload((prev) => ({ ...prev, message: '', actor_name: actor }))
+      setTransitionNotice('Status update sent')
+      addToast('Status update sent')
     } catch (err) {
       addToast((err as Error).message)
+    } finally {
+      setTransitionSubmitting(false)
     }
   }
 
@@ -157,21 +167,33 @@ const AdminIncidentDetailPage = () => {
     event.preventDefault()
     if (!id || !updateForm.message) return
     try {
+      setUpdateSubmitting(true)
+      setUpdateNotice('')
+      const author = updateForm.created_by_name
       await incidentsApi.postUpdate(id, {
         ...updateForm,
         status_at_time: incident?.status,
       })
-      setUpdateForm({ message: '', created_by_name: updateForm.created_by_name })
+      setUpdateForm({ message: '', created_by_name: author })
       await fetchIncident()
-      addToast('Timeline updated')
+      setUpdateNotice('Update sent')
+      addToast('Update sent')
     } catch (err) {
       addToast((err as Error).message)
+    } finally {
+      setUpdateSubmitting(false)
     }
   }
+
+  const canEditPostmortem = incident?.status === 'RESOLVED'
 
   const handlePostmortemSave = async (event: FormEvent) => {
     event.preventDefault()
     if (!id) return
+    if (!canEditPostmortem) {
+      addToast('Resolve the incident before editing the postmortem')
+      return
+    }
     try {
       let result: Postmortem
       if (postmortem) {
@@ -200,6 +222,10 @@ const AdminIncidentDetailPage = () => {
 
   const handlePublish = async () => {
     if (!id || !postmortem) return
+    if (!canEditPostmortem) {
+      addToast('Resolve the incident before publishing the postmortem')
+      return
+    }
     try {
       const actor = incident?.created_by_name || 'admin'
       const result = await incidentsApi.publishPostmortem(id, actor)
@@ -213,6 +239,10 @@ const AdminIncidentDetailPage = () => {
   const handleAddActionItem = async (event: FormEvent) => {
     event.preventDefault()
     if (!id || !postmortem) return
+    if (!canEditPostmortem) {
+      addToast('Resolve the incident before adding action items')
+      return
+    }
     try {
       const payload = {
         ...actionItemForm,
@@ -312,12 +342,13 @@ const AdminIncidentDetailPage = () => {
               Next status
               <select
                 value={transitionPayload.status}
-                onChange={(event) =>
+                onChange={(event) => {
                   setTransitionPayload((prev) => ({
                     ...prev,
                     status: event.target.value as IncidentStatus,
                   }))
-                }
+                  setTransitionNotice('')
+                }}
               >
                 {allowedTransitions.length ? (
                   allowedTransitions.map((status) => (
@@ -334,9 +365,10 @@ const AdminIncidentDetailPage = () => {
               Message
               <textarea
                 value={transitionPayload.message || ''}
-                onChange={(event) =>
+                onChange={(event) => {
                   setTransitionPayload((prev) => ({ ...prev, message: event.target.value }))
-                }
+                  setTransitionNotice('')
+                }}
               />
             </label>
             <label>
@@ -344,14 +376,20 @@ const AdminIncidentDetailPage = () => {
               <input
                 required
                 value={transitionPayload.actor_name}
-                onChange={(event) =>
+                onChange={(event) => {
                   setTransitionPayload((prev) => ({ ...prev, actor_name: event.target.value }))
-                }
+                  setTransitionNotice('')
+                }}
               />
             </label>
-            <button className="primary" disabled={!allowedTransitions.length}>
-              Update status
+            <button className="primary" disabled={!allowedTransitions.length || transitionSubmitting}>
+              {transitionSubmitting ? 'Sending…' : 'Update status'}
             </button>
+            {transitionNotice && (
+              <p className="form-feedback" role="status" aria-live="polite">
+                {transitionNotice}
+              </p>
+            )}
           </form>
         </section>
 
@@ -364,18 +402,24 @@ const AdminIncidentDetailPage = () => {
           </button>
           <button
             className={activeTab === 'postmortem' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('postmortem')}
+            onClick={() => {
+              if (canEditPostmortem) {
+                setActiveTab('postmortem')
+              }
+            }}
+            disabled={!canEditPostmortem}
+            aria-disabled={!canEditPostmortem}
+            title={!canEditPostmortem ? 'Resolve the incident to edit the postmortem' : undefined}
           >
             Postmortem
           </button>
         </section>
+        {!canEditPostmortem && (
+          <p className="form-helper">Resolve this incident to unlock the postmortem workspace.</p>
+        )}
 
         {activeTab === 'timeline' ? (
           <>
-            <section>
-              <h3>Timeline</h3>
-              <Timeline updates={updates} />
-            </section>
             <section>
               <h3>Post update</h3>
               <form className="form-grid" onSubmit={handlePostUpdate}>
@@ -384,9 +428,10 @@ const AdminIncidentDetailPage = () => {
                   <textarea
                     required
                     value={updateForm.message}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setUpdateForm((prev) => ({ ...prev, message: event.target.value }))
-                    }
+                      setUpdateNotice('')
+                    }}
                   />
                 </label>
                 <label>
@@ -394,13 +439,25 @@ const AdminIncidentDetailPage = () => {
                   <input
                     required
                     value={updateForm.created_by_name}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setUpdateForm((prev) => ({ ...prev, created_by_name: event.target.value }))
-                    }
+                      setUpdateNotice('')
+                    }}
                   />
                 </label>
-                <button className="primary">Post update</button>
+                <button className="primary" disabled={updateSubmitting}>
+                  {updateSubmitting ? 'Posting…' : 'Post update'}
+                </button>
+                {updateNotice && (
+                  <p className="form-feedback" role="status" aria-live="polite">
+                    {updateNotice}
+                  </p>
+                )}
               </form>
+            </section>
+            <section>
+              <h3>Timeline</h3>
+              <Timeline updates={updates} />
             </section>
           </>
         ) : (
