@@ -11,6 +11,7 @@ export interface Incident {
   created_by_name: string
   created_at: string
   updated_at: string
+  resolved_at: string | null
   latest_update?: IncidentUpdate | null
   active: boolean
 }
