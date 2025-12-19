@@ -21,6 +21,14 @@ from corsheaders.defaults import default_headers
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def get_list(setting_name: str, default_value: str = "") -> list[str]:
+    """
+    Return a comma-separated env var as a list, trimming blanks.
+    """
+    raw = os.getenv(setting_name, default_value)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
@@ -30,7 +38,10 @@ SECRET_KEY = 'django-insecure-77qh5(1r!ku+d+k6=-vxke+8u#!2!$y4zd=a4=ff8$uwp-xvcq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = get_list(
+    "ALLOWED_HOSTS",
+    "localhost,127.0.0.1",
+)
 
 
 # Application definition
@@ -62,10 +73,16 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True  # dev only
+CORS_ALLOWED_ORIGINS = get_list(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173",
+)
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "idempotency-key",
 ]
+
+CSRF_TRUSTED_ORIGINS = get_list("CSRF_TRUSTED_ORIGINS")
 
 
 ROOT_URLCONF = 'config.urls'
