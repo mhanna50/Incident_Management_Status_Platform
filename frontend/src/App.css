@@ -597,6 +597,7 @@ button.primary:hover {
   color: var(--color-text);
   border-color: transparent;
   padding: 8px 12px;
+  font-size: 1.4rem;
 }
 
 .theme-toggle-tabs {

@@ -150,10 +150,9 @@ const AdminIncidentDetailPage = () => {
     try {
       setTransitionSubmitting(true)
       setTransitionNotice('')
-      const actor = transitionPayload.actor_name
       await incidentsApi.transitionIncident(id, transitionPayload)
       await fetchIncident()
-      setTransitionPayload((prev) => ({ ...prev, message: '', actor_name: actor }))
+      setTransitionPayload((prev) => ({ ...prev, message: '', actor_name: '' }))
       setTransitionNotice('Status update sent')
       addToast('Status update sent')
     } catch (err) {

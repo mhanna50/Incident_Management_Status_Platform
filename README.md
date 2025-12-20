@@ -132,6 +132,19 @@ celery -A config worker -l info  # use a separate terminal
 python manage.py runserver
 ```
 
+#### Resetting demo data / clearing the audit log
+- **Reset to curated demo content (recommended)**  
+  ```bash
+  python manage.py seed_demo
+  ```  
+  This wipes incidents, timeline updates, postmortems, action items, and the audit log before reseeding showcase data so every admin/public view has meaningful scenarios.
+- **Start from a blank database**  
+  ```bash
+  python manage.py flush
+  python manage.py migrate
+  ```  
+  Optionally rerun `python manage.py seed_demo` if you want the curated incidents back after testing.
+
 Environment variables (set via `.env` or export):
 - `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` – defaults to `redis://127.0.0.1:6379/0`.
 - `CELERY_TASK_ALWAYS_EAGER` – defaults to `true` for local dev (emails send inline); set to `false` when running a worker.

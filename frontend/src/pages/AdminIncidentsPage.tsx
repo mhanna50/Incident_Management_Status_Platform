@@ -63,6 +63,18 @@ const INCIDENT_TEMPLATES: Array<{ id: string; label: string; values: incidentsAp
       created_by_name: '',
     },
   },
+  {
+    id: 'release-communications',
+    label: 'SEV4 – Informational notice',
+    values: {
+      title: 'Feature rollout communications',
+      summary: 'Notifying customers about a minor visual bug while a patch rolls out.',
+      severity: 'SEV4',
+      status: 'MONITORING',
+      is_public: true,
+      created_by_name: '',
+    },
+  },
 ]
 
 const AdminIncidentsPage = () => {
