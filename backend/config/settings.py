@@ -26,7 +26,12 @@ def get_list(setting_name: str, default_value: str = "") -> list[str]:
     Return a comma-separated env var as a list, trimming blanks.
     """
     raw = os.getenv(setting_name, default_value)
-    return [item.strip() for item in raw.split(",") if item.strip()]
+    values: list[str] = []
+    for item in raw.split(","):
+        cleaned = item.strip().strip('"').strip("'")
+        if cleaned:
+            values.append(cleaned)
+    return values
 
 
 # Quick-start development settings - unsuitable for production
