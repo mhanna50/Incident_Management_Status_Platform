@@ -7,6 +7,31 @@ import { INCIDENT_SEVERITIES, SEVERITY_LABELS } from '../api/types'
 import { useToast } from '../components/ToastProvider'
 import { useEventStream } from '../hooks/useEventStream'
 
+const buildThreeMonthSeries = <T,>(entries: T[], getDate: (entry: T) => string, getValue: (entry: T) => number) => {
+  const totals = new Map<string, number>()
+  entries.forEach((entry) => {
+    const rawDate = getDate(entry)
+    if (!rawDate) return
+    const parsed = new Date(rawDate)
+    if (Number.isNaN(parsed.getTime())) return
+    const key = `${parsed.getFullYear()}-${parsed.getMonth()}`
+    const value = getValue(entry) || 0
+    totals.set(key, (totals.get(key) ?? 0) + value)
+  })
+  const now = new Date()
+  const series = []
+  for (let offset = 2; offset >= 0; offset -= 1) {
+    const target = new Date(now.getFullYear(), now.getMonth() - offset, 1)
+    const key = `${target.getFullYear()}-${target.getMonth()}`
+    series.push({
+      label: `${target.toLocaleString('default', { month: 'short' })} ${String(target.getFullYear()).slice(-2)}`,
+      value: totals.get(key) ?? 0,
+      timestamp: target.getTime(),
+    })
+  }
+  return series
+}
+
 const AdminMetricsPage = () => {
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -43,6 +68,24 @@ const AdminMetricsPage = () => {
       severity,
       count: metrics.incident_pulse.severity_breakdown[severity] ?? 0,
     })).filter((entry) => entry.count > 0)
+  }, [metrics])
+
+  const subscriberMonthly = useMemo(() => {
+    if (!metrics) return []
+    return buildThreeMonthSeries(
+      metrics.engagement.subscriber_growth,
+      (entry) => entry.date,
+      (entry) => entry.count ?? 0
+    )
+  }, [metrics])
+
+  const viewsMonthly = useMemo(() => {
+    if (!metrics) return []
+    return buildThreeMonthSeries(
+      metrics.engagement.status_page_views,
+      (entry) => entry.date,
+      (entry) => entry.views ?? 0
+    )
   }, [metrics])
 
   if (loading) {
@@ -137,20 +180,26 @@ const AdminMetricsPage = () => {
               <p className="subtitle">MTTR trends and percentile performance.</p>
             </div>
           </header>
-          <div className="metric-cards compact">
-            <div className="metric-card compact">
-              <p>P50 resolution</p>
-              <strong>{metrics.resolution_health.percentiles.p50 ?? '—'} hrs</strong>
+          <div className="resolution-grid">
+            <div className="resolution-stat">
+              <span className="resolution-label">Median (P50)</span>
+              <strong className="resolution-value">{metrics.resolution_health.percentiles.p50 ?? '—'} hrs</strong>
+              <small>Typical resolution window</small>
             </div>
-            <div className="metric-card compact">
-              <p>P90 resolution</p>
-              <strong>{metrics.resolution_health.percentiles.p90 ?? '—'} hrs</strong>
+            <div className="resolution-stat">
+              <span className="resolution-label">Tail (P90)</span>
+              <strong className="resolution-value">{metrics.resolution_health.percentiles.p90 ?? '—'} hrs</strong>
+              <small>Long-running incidents</small>
             </div>
-            <div className="metric-card visibility-card">
-              <p>Visibility mix</p>
-              <div className="visibility-breakdown">
-                <span>Public: {metrics.resolution_health.visibility_breakdown.public}</span>
-                <span>Internal: {metrics.resolution_health.visibility_breakdown.internal}</span>
+            <div className="resolution-visibility">
+              <span className="resolution-label">Visibility mix</span>
+              <div className="visibility-pill public">
+                <span>Public</span>
+                <strong>{metrics.resolution_health.visibility_breakdown.public}</strong>
+              </div>
+              <div className="visibility-pill internal">
+                <span>Internal</span>
+                <strong>{metrics.resolution_health.visibility_breakdown.internal}</strong>
               </div>
             </div>
           </div>
@@ -165,63 +214,77 @@ const AdminMetricsPage = () => {
           </header>
           <div className="metric-cards graphics">
             <div className="metric-card growth-card">
-              <p>Subscriber signups (last 7 days)</p>
-              <div className="bar-chart small">
-                {metrics.engagement.subscriber_growth.map((entry) => (
-                  <div key={entry.date} className="bar">
-                    <div
-                      className="bar-fill"
-                      style={{ height: `${entry.count ? Math.min(entry.count * 25, 100) : 4}%` }}
-                      aria-label={`${entry.date} subscribers ${entry.count}`}
-                    />
-                    <small>{entry.date.slice(5)}</small>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="metric-card donut-card">
-              <p>Email delivery</p>
-              <div className="donut-chart">
-                <svg viewBox="0 0 36 36">
-                  <circle className="donut-ring" cx="18" cy="18" r="15.915" />
-                  {metrics.engagement.email_delivery.map((entry, index) => {
-                    const total = metrics.engagement.email_delivery.reduce((sum, item) => sum + item.count, 0) || 1
-                    const offset = metrics.engagement.email_delivery
-                      .slice(0, index)
-                      .reduce((sum, item) => sum + (item.count / total) * 100, 0)
-                    const circumference = (entry.count / total) * 100
-                    return (
-                      <circle
-                        key={entry.status}
-                        className={`donut-segment segment-${index}`}
-                        cx="18"
-                        cy="18"
-                        r="15.915"
-                        strokeDasharray={`${circumference} ${100 - circumference}`}
-                        strokeDashoffset={100 - offset}
-                      />
-                    )
-                  })}
-                </svg>
-                <div className="donut-legend">
-                  {metrics.engagement.email_delivery.map((entry, index) => (
-                    <span key={entry.status}>
-                      <span className={`dot segment-${index}`} /> {entry.status}: {entry.count}
-                    </span>
-                  ))}
+              <p>Subscriber signups (last 3 months)</p>
+              {subscriberMonthly.length ? (
+                <div className="bar-chart small">
+                  {(() => {
+                    const max = Math.max(...subscriberMonthly.map((item) => item.value), 1)
+                    return subscriberMonthly.map((entry) => (
+                      <div key={entry.timestamp} className="bar">
+                        <span className="bar-value">{entry.value}</span>
+                        <div
+                          className="bar-fill"
+                          style={{ height: `${(entry.value / max) * 100 || 4}%` }}
+                          aria-label={`${entry.label} subscriber growth ${entry.value}`}
+                        />
+                        <small>{entry.label}</small>
+                      </div>
+                    ))
+                  })()}
                 </div>
-              </div>
+              ) : (
+                <p className="empty">No subscriber data</p>
+              )}
+            </div>
+            <div className="metric-card delivery-card">
+              <p>Email delivery</p>
+              {(() => {
+                const stats = metrics.engagement.email_delivery
+                const sent = stats.find((entry) => entry.status === 'SENT')?.count ?? 0
+                const failed = stats.find((entry) => entry.status === 'FAILED')?.count ?? 0
+                const pending = stats.find((entry) => entry.status === 'PENDING')?.count ?? 0
+                const active = sent > 0
+                return (
+                  <div className={`delivery-status ${active ? 'active' : 'inactive'}`}>
+                    <div className="delivery-pulse" aria-label={`Email delivery ${active ? 'active' : 'paused'}`}>
+                      {active ? 'Active' : 'Paused'}
+                    </div>
+                    <p className="subtitle">
+                      {active
+                        ? 'Subscriber notifications are sending successfully.'
+                        : 'No successful deliveries detected recently.'}
+                    </p>
+                    <div className="delivery-meta">
+                      <span>Sent: {sent}</span>
+                      <span>Pending: {pending}</span>
+                      <span>Failed: {failed}</span>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
             <div className="metric-card area-card">
-              <p>Status page views</p>
-              <div className="area-chart">
-                {metrics.engagement.status_page_views.map((entry) => (
-                  <div key={entry.date} className="area-step">
-                    <div className="area-fill" style={{ height: `${entry.views ?? 0}%` }} />
-                    <small>{entry.date.slice(5)}</small>
-                  </div>
-                ))}
-              </div>
+              <p>Status page views (last 3 months)</p>
+              {viewsMonthly.length ? (
+                <div className="bar-chart small">
+                  {(() => {
+                    const max = Math.max(...viewsMonthly.map((item) => item.value), 1)
+                    return viewsMonthly.map((entry) => (
+                      <div key={entry.timestamp} className="bar">
+                        <span className="bar-value">{entry.value}</span>
+                        <div
+                          className="bar-fill"
+                          style={{ height: `${(entry.value / max) * 100 || 4}%` }}
+                          aria-label={`${entry.label} status page views ${entry.value}`}
+                        />
+                        <small>{entry.label}</small>
+                      </div>
+                    ))
+                  })()}
+                </div>
+              ) : (
+                <p className="empty">No view data</p>
+              )}
             </div>
           </div>
         </section>
@@ -252,7 +315,7 @@ const AdminMetricsPage = () => {
             <div className="watchlist-card">
               <h4>Missing postmortems</h4>
               {metrics.automation_watchlist.missing_postmortems.length ? (
-                <ul className="list-plain">
+                <ul className="list-bulleted">
                   {metrics.automation_watchlist.missing_postmortems.map((item) => (
                     <li key={item.id}>
                       <strong>{item.title}</strong>

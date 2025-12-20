@@ -77,6 +77,23 @@ const SplashPage = () => {
   return (
     <div className="splash-page">
       <div className="splash-shell">
+        <section className="demo-callout">
+          <h3>Heads up — this is a demo environment</h3>
+          <p>
+            The goal is to showcase product depth without gatekeeping access. Before production use, add the controls
+            companies expect from a full incident platform.
+          </p>
+          <p className="splash-note">
+            This demo runs on free Vercel + Northflank instances, so cold starts or refresh delays may occur while
+            workers spin up.
+          </p>
+          <ul className="splash-list">
+            {demoLimitations.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+
         <section className="splash-hero">
           <p className="splash-eyebrow">Incident Management Status Platform</p>
           <h1>Operational command center for outages, comms, and customer trust.</h1>
@@ -161,19 +178,6 @@ const SplashPage = () => {
               </p>
             </article>
           </div>
-        </section>
-
-        <section className="demo-callout">
-          <h3>Heads up — this is a demo environment</h3>
-          <p>
-            The goal is to showcase product depth without gatekeeping access. Before production use, add the controls
-            companies expect from a full incident platform.
-          </p>
-          <ul className="splash-list">
-            {demoLimitations.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
         </section>
 
         <footer className="splash-footer">
