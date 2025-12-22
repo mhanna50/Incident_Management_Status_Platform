@@ -130,7 +130,9 @@ const SplashPage = () => {
             </ul>
           </div>
           {hasDemoVideo && (
-            <figure className="demo-video" ref={(node) => (videoContainerRef.current = node)}>
+            <figure className="demo-video" ref={(node) => {
+              videoContainerRef.current = node
+            }}>
               <div className="demo-video-frame">
                 {shouldLoadVideo ? (
                   <video
