@@ -504,6 +504,126 @@ textarea {
   padding: 28px;
   border: 1px dashed var(--color-border-strong);
   background: rgba(15, 98, 254, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.demo-callout-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.demo-video {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.demo-video-frame {
+  position: relative;
+}
+
+.demo-video video {
+  width: 100%;
+  border-radius: 20px;
+  border: 1px solid var(--color-border-strong);
+  background: #000;
+  box-shadow: var(--color-shadow);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.demo-video figcaption {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.demo-video-placeholder {
+  width: 100%;
+  border-radius: 20px;
+  border: 1px dashed var(--color-border-strong);
+  padding: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 230px;
+  color: var(--color-text-muted);
+  text-align: center;
+  background: rgba(15, 98, 254, 0.05);
+}
+
+.demo-video-placeholder p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.splash-scroll-pointer {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  z-index: 10;
+}
+
+.splash-scroll-pointer svg {
+  width: 22px;
+  height: 22px;
+  stroke: #fff;
+  stroke-width: 2.2;
+  fill: none;
+  animation: arrow-bob 1.6s ease-in-out infinite;
+}
+
+.splash-scroll-pointer svg path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.splash-scroll-pointer:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.35);
+}
+
+.splash-scroll-pointer:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@keyframes arrow-bob {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 900px) {
+  .demo-callout {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .demo-callout-content,
+  .demo-video {
+    flex: 1;
+  }
 }
 
 .api-endpoint-list {
@@ -560,6 +680,10 @@ textarea {
 
   .splash-hero {
     padding: 32px 24px;
+  }
+
+  .splash-scroll-pointer {
+    display: none;
   }
 }
 

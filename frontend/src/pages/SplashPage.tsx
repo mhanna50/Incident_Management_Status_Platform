@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
 
 const endpointCards = [
   {
@@ -73,25 +74,81 @@ const demoLimitations = [
   'Data retention, multi-tenant isolation, and production observability tooling are simplified so the experience stays lightweight.',
 ]
 
+const demoVideoUrl = (import.meta.env.VITE_DEMO_VIDEO_URL || '').trim()
+const endpointSectionId = 'explore-endpoints'
+
 const SplashPage = () => {
+  const hasDemoVideo = Boolean(demoVideoUrl)
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(false)
+  const videoContainerRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!hasDemoVideo || shouldLoadVideo) {
+      return
+    }
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      setShouldLoadVideo(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setShouldLoadVideo(true)
+            observer.disconnect()
+          }
+        })
+      },
+      { rootMargin: '0px 0px -20% 0px', threshold: 0.2 }
+    )
+
+    if (videoContainerRef.current) {
+      observer.observe(videoContainerRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [hasDemoVideo, shouldLoadVideo])
+
   return (
     <div className="splash-page">
       <div className="splash-shell">
         <section className="demo-callout">
-          <h3>Heads up — this is a demo environment</h3>
-          <p>
-            The goal is to showcase product depth without gatekeeping access. Before production use, add the controls
-            companies expect from a full incident platform.
-          </p>
-          <p className="splash-note">
-            This demo runs on free Vercel + Northflank instances, so cold starts or refresh delays may occur while
-            workers spin up.
-          </p>
-          <ul className="splash-list">
-            {demoLimitations.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
+          <div className="demo-callout-content">
+            <h3>Heads up — this is a demo environment</h3>
+            <p>
+              The goal is to showcase product depth without gatekeeping access. Before production use, add the
+              controls companies expect from a full incident platform.
+            </p>
+            <p className="splash-note">
+              This demo runs on free Vercel + Northflank instances, so cold starts or refresh delays may occur while
+              workers spin up.
+            </p>
+            <ul className="splash-list">
+              {demoLimitations.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          {hasDemoVideo && (
+            <figure className="demo-video" ref={(node) => (videoContainerRef.current = node)}>
+              <div className="demo-video-frame">
+                {shouldLoadVideo ? (
+                  <video
+                    src={demoVideoUrl}
+                    controls
+                    preload="metadata"
+                    playsInline
+                    aria-label="Screen recording walkthrough of the demo environment"
+                  />
+                ) : (
+                  <div className="demo-video-placeholder" aria-hidden="true">
+                    <p>Scroll to load the walkthrough.</p>
+                  </div>
+                )}
+              </div>
+              <figcaption>Screen recording walkthrough of the demo environment.</figcaption>
+            </figure>
+          )}
         </section>
 
         <section className="splash-hero">
@@ -108,7 +165,7 @@ const SplashPage = () => {
         </section>
 
         <section className="splash-grid">
-          <article className="splash-card span-full">
+          <article id={endpointSectionId} className="splash-card span-full">
             <h3>Endpoints you can explore</h3>
             <p className="splash-card-subtitle">
               Each view mirrors a workflow: public trust, internal response, metrics, and audits. Pick a destination to
@@ -187,6 +244,11 @@ const SplashPage = () => {
           </p>
         </footer>
       </div>
+      <a className="splash-scroll-pointer" href={`#${endpointSectionId}`} aria-label="Jump to endpoints you can explore">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M12 5v14m0 0-5-5m5 5 5-5" />
+        </svg>
+      </a>
     </div>
   )
 }

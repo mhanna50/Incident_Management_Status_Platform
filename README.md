@@ -177,6 +177,13 @@ The backend suite includes the new DRF integration coverage to prove API conform
 
 Add GIFs or Loom links here to elevate the README when presenting to interviewers.
 
+### Splash Page Demo Video
+Add the screen-recording you want visitors to see when they land on the splash page:
+1. Save the MP4/WebM (or MOV, though MP4 keeps bundle sizes smaller) in `frontend/public` (example: `frontend/public/demo-walkthrough.mp4`). Anything inside `public` is served at the repo root, so that file becomes available at `/demo-walkthrough.mp4`.
+2. Set `VITE_DEMO_VIDEO_URL` in `frontend/.env` (and your deployment env) to the relative path or a fully qualified URL, e.g. `VITE_DEMO_VIDEO_URL=/demo-walkthrough.mp4`.
+3. Restart `npm run dev` or rebuild so Vite picks up the env change before you refresh the page.
+With the variable set, the demo callout automatically shows the video beside the text-only caveats, giving reviewers a quick overview.
+
 ## Key Endpoints (DRF)
 | Method | Path | Purpose |
 |--------|------|---------|
