@@ -3,6 +3,7 @@ from django.urls import path
 from incidents import views
 
 urlpatterns = [
+    path("", views.api_root, name="api-root"),
     path("api/incidents", views.IncidentListCreateView.as_view(), name="incident-list"),
     path(
         "api/incidents/analytics",

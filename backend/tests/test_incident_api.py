@@ -26,6 +26,16 @@ def test_create_incident_and_list(api_client):
 
 
 @pytest.mark.django_db
+def test_api_root_returns_helpful_links(api_client):
+    response = api_client.get(reverse("api-root"))
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["service"] == "Incident Management & Public Status API"
+    assert "public_status" in payload["links"]
+    assert payload["links"]["public_status"].endswith("/api/public/status")
+
+
+@pytest.mark.django_db
 def test_transition_and_updates(api_client):
     incident = Incident.objects.create(
         title="Integration Demo",

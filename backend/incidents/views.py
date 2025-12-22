@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from django.http import Http404, HttpResponse, StreamingHttpResponse
+from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.urls import reverse
 from django.views import View
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
@@ -29,6 +30,28 @@ from incidents.services import (
     status as status_service,
 )
 from incidents.services.idempotency import idempotent_endpoint
+
+
+def api_root(request):
+    """Serve a friendly landing page instead of Django's default 404."""
+
+    def absolute(name: str) -> str:
+        return request.build_absolute_uri(reverse(name))
+
+    return JsonResponse(
+        {
+            "service": "Incident Management & Public Status API",
+            "message": "See README.md for deployment instructions and the React frontend.",
+            "links": {
+                "health": absolute("healthz"),
+                "prometheus_metrics": request.build_absolute_uri("/metrics"),
+                "incidents": absolute("incident-list"),
+                "incident_analytics": absolute("incident-analytics"),
+                "public_status": absolute("public-status"),
+                "public_stream": absolute("stream-public"),
+            },
+        }
+    )
 
 
 @method_decorator(ratelimit(key="ip", rate="10/m", block=True), name="post")
